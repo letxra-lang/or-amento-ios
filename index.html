@@ -1,100 +1,149 @@
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Orçamento Mensal</title>
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="default">
-  <style>
-    body { font-family: -apple-system, Arial; background:#f2f2f7; padding:16px; }
-    .card { background:#fff; padding:16px; border-radius:12px; margin-bottom:12px; }
-    input, select, button { width:100%; padding:10px; margin:6px 0; }
-    .expense { border-bottom:1px solid #eee; padding:8px 0; }
-    .negative { color:red; font-weight:bold; }
-    .positive { color:green; }
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orçamento Anual</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<style>
+  body { font-family:-apple-system, Arial; background:#f2f2f7; padding:14px; }
+  .card { background:#fff; border-radius:12px; padding:14px; margin-bottom:12px; }
+  input, select, button { width:100%; padding:10px; margin:6px 0; }
+  .row { display:flex; gap:6px; }
+  .row > * { flex:1; }
+  .expense { border-bottom:1px solid #eee; padding:6px 0; font-size:14px; }
+  .neg { color:#d32f2f; font-weight:600; }
+  .pos { color:#2e7d32; font-weight:600; }
+</style>
 </head>
 <body>
 
-  <div class="card">
-    <h2>Orçamento Mensal</h2>
-    <label>Salário</label>
-    <input type="number" id="salary" value="6000" />
-    <p>Total de despesas: R$ <span id="total">0</span></p>
-    <p>Saldo: <span id="balance" class="positive">R$ 6000</span></p>
-  </div>
+<div class="card">
+  <h2>Orçamento Anual</h2>
+  <label>Mês</label>
+  <select id="month"></select>
+  <p>Entradas: R$ <span id="inTotal">0</span></p>
+  <p>Despesas: R$ <span id="outTotal">0</span></p>
+  <p>Saldo: <span id="balance" class="pos">R$ 0</span></p>
+</div>
 
-  <div class="card">
-    <h3>Nova despesa</h3>
-    <input id="desc" placeholder="Descrição"/>
-    <select id="cat">
-      <option>Moradia</option><option>Alimentação</option><option>Transporte</option>
-      <option>Saúde</option><option>Lazer</option><option>Educação</option>
-      <option>Assinaturas</option><option>Imprevistos</option><option>Outros</option>
-    </select>
-    <select id="pay">
-      <option>Cartão</option><option>Pix</option><option>Boleto</option>
-    </select>
-    <input type="number" id="val" placeholder="Valor"/>
-    <button onclick="addExpense()">Adicionar</button>
-  </div>
+<div class="card">
+  <h3>Nova entrada</h3>
+  <select id="inType">
+    <option>Salário</option>
+    <option>Entrada extra</option>
+  </select>
+  <input id="inOrigin" placeholder="Origem (ex: Empresa, Freela, Venda)">
+  <input id="inValue" type="number" placeholder="Valor">
+  <button onclick="addIncome()">Adicionar entrada</button>
+</div>
 
-  <div class="card">
-    <h3>Despesas</h3>
-    <div id="list"></div>
+<div class="card">
+  <h3>Nova despesa</h3>
+  <input id="desc" placeholder="Descrição">
+  <select id="cat">
+    <option>Moradia</option><option>Alimentação</option><option>Transporte</option>
+    <option>Saúde</option><option>Lazer</option><option>Educação</option>
+    <option>Assinaturas</option><option>Imprevistos</option><option>Outros</option>
+  </select>
+  <select id="pay">
+    <option>Cartão</option><option>Pix</option><option>Boleto</option>
+  </select>
+  <div class="row">
+    <input id="val" type="number" placeholder="Valor total">
+    <input id="parts" type="number" placeholder="Parcelas (ex: 3)">
   </div>
+  <button onclick="addExpense()">Adicionar despesa</button>
+</div>
+
+<div class="card">
+  <h3>Lançamentos do mês</h3>
+  <div id="list"></div>
+</div>
 
 <script>
-  let expenses = JSON.parse(localStorage.getItem("expenses") || "[]");
+const months = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+let data = JSON.parse(localStorage.getItem("budget") || "{}");
+let currentMonth = new Date().getMonth();
 
-  function render() {
-    const list = document.getElementById("list");
-    const total = expenses.reduce((s, e) => s + e.value, 0);
-    const salary = Number(document.getElementById("salary").value);
-    const balance = salary - total;
+const monthSelect = document.getElementById("month");
+months.forEach((m,i)=> monthSelect.innerHTML += `<option value="${i}">${m}</option>`);
+monthSelect.value = currentMonth;
 
-    document.getElementById("total").innerText = total.toFixed(2);
-    const balEl = document.getElementById("balance");
-    balEl.innerText = "R$ " + balance.toFixed(2);
-    balEl.className = balance < 0 ? "negative" : "positive";
+function getMonthData(m){
+  if(!data[m]) data[m] = { incomes: [], expenses: [] };
+  return data[m];
+}
 
-    list.innerHTML = "";
-    expenses.forEach((e, i) => {
-      list.innerHTML += `
-        <div class="expense">
-          <strong>${e.desc}</strong><br/>
-          ${e.cat} • ${e.pay} • R$ ${e.value.toFixed(2)}
-          <button onclick="remove(${i})">❌</button>
-        </div>
-      `;
-    });
+function save(){ localStorage.setItem("budget", JSON.stringify(data)); }
 
-    localStorage.setItem("expenses", JSON.stringify(expenses));
-  }
+function render(){
+  const m = monthSelect.value;
+  const d = getMonthData(m);
 
-  function addExpense() {
-    const desc = document.getElementById("desc").value;
-    const cat = document.getElementById("cat").value;
-    const pay = document.getElementById("pay").value;
-    const val = Number(document.getElementById("val").value);
+  let inTotal = d.incomes.reduce((s,i)=>s+i.value,0);
+  let outTotal = d.expenses.reduce((s,e)=>s+e.value,0);
+  let bal = inTotal - outTotal;
 
-    if (!desc || !val) return;
+  document.getElementById("inTotal").innerText = inTotal.toFixed(2);
+  document.getElementById("outTotal").innerText = outTotal.toFixed(2);
 
-    expenses.push({ desc, cat, pay, value: val });
-    document.getElementById("desc").value = "";
-    document.getElementById("val").value = "";
-    render();
-  }
+  const balEl = document.getElementById("balance");
+  balEl.innerText = "R$ " + bal.toFixed(2);
+  balEl.className = bal < 0 ? "neg" : "pos";
 
-  function remove(i) {
-    expenses.splice(i, 1);
-    render();
-  }
+  const list = document.getElementById("list");
+  list.innerHTML = "";
 
-  document.getElementById("salary").addEventListener("input", render);
+  d.incomes.forEach(i=>{
+    list.innerHTML += `<div class="expense">➕ ${i.type} - ${i.origin}: R$ ${i.value.toFixed(2)}</div>`;
+  });
+
+  d.expenses.forEach(e=>{
+    list.innerHTML += `<div class="expense">➖ ${e.desc} (${e.cat} • ${e.pay}): R$ ${e.value.toFixed(2)}</div>`;
+  });
+
+  save();
+}
+
+function addIncome(){
+  const m = monthSelect.value;
+  const d = getMonthData(m);
+  const value = Number(inValue.value);
+  if(!value) return;
+
+  d.incomes.push({ type: inType.value, origin: inOrigin.value || "—", value });
+  inValue.value = ""; inOrigin.value = "";
   render();
-</script>
+}
 
+function addExpense(){
+  const baseMonth = Number(monthSelect.value);
+  const descV = desc.value;
+  const catV = cat.value;
+  const payV = pay.value;
+  const total = Number(val.value);
+  const parts = Number(parts.value) || 1;
+
+  if(!total || !descV) return;
+
+  for(let i=0;i<parts;i++){
+    const m = (baseMonth + i) % 12;
+    const d = getMonthData(m);
+    d.expenses.push({
+      desc: descV + (parts>1 ? ` (${i+1}/${parts})` : ""),
+      cat: catV,
+      pay: payV,
+      value: total/parts
+    });
+  }
+
+  desc.value=""; val.value=""; parts.value="";
+  render();
+}
+
+monthSelect.onchange = render;
+render();
+</script>
 </body>
 </html>
