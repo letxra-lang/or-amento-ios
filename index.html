@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Orçamento Mensal</title>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <style>
+    body { font-family: -apple-system, Arial; background:#f2f2f7; padding:16px; }
+    .card { background:#fff; padding:16px; border-radius:12px; margin-bottom:12px; }
+    input, select, button { width:100%; padding:10px; margin:6px 0; }
+    .expense { border-bottom:1px solid #eee; padding:8px 0; }
+    .negative { color:red; font-weight:bold; }
+    .positive { color:green; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>Orçamento Mensal</h2>
+    <label>Salário</label>
+    <input type="number" id="salary" value="6000" />
+    <p>Total de despesas: R$ <span id="total">0</span></p>
+    <p>Saldo: <span id="balance" class="positive">R$ 6000</span></p>
+  </div>
+
+  <div class="card">
+    <h3>Nova despesa</h3>
+    <input id="desc" placeholder="Descrição"/>
+    <select id="cat">
+      <option>Moradia</option><option>Alimentação</option><option>Transporte</option>
+      <option>Saúde</option><option>Lazer</option><option>Educação</option>
+      <option>Assinaturas</option><option>Imprevistos</option><option>Outros</option>
+    </select>
+    <select id="pay">
+      <option>Cartão</option><option>Pix</option><option>Boleto</option>
+    </select>
+    <input type="number" id="val" placeholder="Valor"/>
+    <button onclick="addExpense()">Adicionar</button>
+  </div>
+
+  <div class="card">
+    <h3>Despesas</h3>
+    <div id="list"></div>
+  </div>
+
+<script>
+  let expenses = JSON.parse(localStorage.getItem("expenses") || "[]");
+
+  function render() {
+    const list = document.getElementById("list");
+    const total = expenses.reduce((s, e) => s + e.value, 0);
+    const salary = Number(document.getElementById("salary").value);
+    const balance = salary - total;
+
+    document.getElementById("total").innerText = total.toFixed(2);
+    const balEl = document.getElementById("balance");
+    balEl.innerText = "R$ " + balance.toFixed(2);
+    balEl.className = balance < 0 ? "negative" : "positive";
+
+    list.innerHTML = "";
+    expenses.forEach((e, i) => {
+      list.innerHTML += `
+        <div class="expense">
+          <strong>${e.desc}</strong><br/>
+          ${e.cat} • ${e.pay} • R$ ${e.value.toFixed(2)}
+          <button onclick="remove(${i})">❌</button>
+        </div>
+      `;
+    });
+
+    localStorage.setItem("expenses", JSON.stringify(expenses));
+  }
+
+  function addExpense() {
+    const desc = document.getElementById("desc").value;
+    const cat = document.getElementById("cat").value;
+    const pay = document.getElementById("pay").value;
+    const val = Number(document.getElementById("val").value);
+
+    if (!desc || !val) return;
+
+    expenses.push({ desc, cat, pay, value: val });
+    document.getElementById("desc").value = "";
+    document.getElementById("val").value = "";
+    render();
+  }
+
+  function remove(i) {
+    expenses.splice(i, 1);
+    render();
+  }
+
+  document.getElementById("salary").addEventListener("input", render);
+  render();
+</script>
+
+</body>
+</html>
